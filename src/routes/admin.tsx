@@ -150,9 +150,35 @@ function Calc({ label, v, highlight }: { label: string; v: string; highlight?: b
   );
 }
 
+/** Input numérico que pode ficar vazio (mostra placeholder em vez de 0 travado) */
+function NumInput({ value, onValue, ...props }: { value: number; onValue: (v: number) => void }
+  & Omit<React.ComponentProps<typeof Input>, "value" | "onChange" | "type">) {
+  const [text, setText] = useState(value === 0 ? "" : String(value));
+  useEffect(() => {
+    const parsed = text === "" || text === "-" ? 0 : Number(text);
+    if (parsed !== value) setText(value === 0 ? "" : String(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <Input
+      type="number"
+      inputMode="decimal"
+      placeholder="0"
+      value={text}
+      onChange={(e) => {
+        const t = e.target.value;
+        setText(t);
+        const n = t === "" || t === "-" ? 0 : Number(t);
+        if (!Number.isNaN(n)) onValue(n);
+      }}
+      {...props}
+    />
+  );
+}
+
 /* ---------------- ORDERS ---------------- */
 const emptyProduct = (): OrderProduct => ({
-  name: "", boxQty: 1, frascosPerBox: 10, mgPerVial: 10, priceUSD: 0,
+  name: "", boxQty: 0, frascosPerBox: 0, mgPerVial: 0, priceUSD: 0, priceCurrency: "USD",
   status: "arrived", usage: "consumo", consumed: 0,
 });
 
@@ -207,7 +233,7 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
             const onPick = (name: string) => {
               const saved = db.savedProducts?.find(sp => sp.name.toLowerCase() === name.toLowerCase());
               if (saved) setProd(idx, {
-                name: saved.name, mgPerVial: saved.mgPerVial, priceUSD: saved.priceUSD,
+                name: saved.name, mgPerVial: saved.mgPerVial, priceUSD: saved.priceUSD, priceCurrency: "USD",
                 frascosPerBox: saved.frascosPerBox || p.frascosPerBox,
               });
               else setProd(idx, { name });
@@ -224,11 +250,11 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
                   </div>
                   <div className="col-span-4 md:col-span-1">
                     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Boxes</Label>
-                    <Input type="number" min={0} value={p.boxQty} onChange={e => setProd(idx, { boxQty: Number(e.target.value) })} />
+                    <NumInput min={0} value={p.boxQty} onValue={v => setProd(idx, { boxQty: v })} />
                   </div>
                   <div className="col-span-4 md:col-span-1">
                     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Fr/Box</Label>
-                    <Input type="number" min={1} value={p.frascosPerBox} onChange={e => setProd(idx, { frascosPerBox: Number(e.target.value) })} />
+                    <NumInput min={1} value={p.frascosPerBox} onValue={v => setProd(idx, { frascosPerBox: v })} />
                   </div>
                   <div className="col-span-4 md:col-span-1 text-center">
                     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</Label>
@@ -236,11 +262,27 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
                   </div>
                   <div className="col-span-6 md:col-span-2">
                     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">mg/Frasco</Label>
-                    <Input type="number" value={p.mgPerVial} onChange={e => setProd(idx, { mgPerVial: Number(e.target.value) })} />
+                    <NumInput value={p.mgPerVial} onValue={v => setProd(idx, { mgPerVial: v })} />
                   </div>
                   <div className="col-span-6 md:col-span-2">
-                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">US$/Box</Label>
-                    <Input type="number" step="0.01" value={p.priceUSD} onChange={e => setProd(idx, { priceUSD: Number(e.target.value) })} />
+                    <div className="flex items-center gap-1 mb-0.5">
+                      {(["USD", "BRL"] as const).map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setProd(idx, { priceCurrency: c })}
+                          className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border transition-colors ${
+                            (p.priceCurrency ?? "USD") === c
+                              ? "gold-gradient border-transparent font-semibold"
+                              : "border-primary/30 text-muted-foreground hover:border-primary/60"
+                          }`}
+                        >
+                          {c === "USD" ? "US$" : "R$"}
+                        </button>
+                      ))}
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">/Box</span>
+                    </div>
+                    <NumInput step="0.01" value={p.priceUSD} onValue={v => setProd(idx, { priceUSD: v })} />
                   </div>
                   <div className="col-span-10 md:col-span-1 text-right">
                     <p className="text-[10px] uppercase text-muted-foreground">Custo/Frasco</p>
@@ -267,7 +309,7 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
                   {p.usage === "consumo" && p.status === "arrived" && (
                     <div>
                       <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Já consumi (frascos)</Label>
-                      <Input type="number" min={0} max={vials} value={p.consumed || 0} onChange={e => setProd(idx, { consumed: Number(e.target.value) })} className="mt-1" />
+                      <NumInput min={0} max={vials} value={p.consumed || 0} onValue={v => setProd(idx, { consumed: v })} className="mt-1" />
                       <p className="text-[10px] text-muted-foreground mt-1">Restante: {Math.max(0, vials - (p.consumed || 0))}</p>
                     </div>
                   )}
@@ -283,9 +325,9 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <Field label="Frete China → USA (USD)"><Input type="number" step="0.01" value={freightChina} onChange={e => setFreightChina(Number(e.target.value))} /></Field>
-        <Field label="Frete USA → Paraguai (USD)"><Input type="number" step="0.01" value={freightUSA} onChange={e => setFreightUSA(Number(e.target.value))} /></Field>
-        <Field label="Frete Paraguai → Brasil (R$)"><Input type="number" step="0.01" value={freightBR} onChange={e => setFreightBR(Number(e.target.value))} /></Field>
+        <Field label="Frete China → USA (USD)"><NumInput step="0.01" value={freightChina} onValue={v => setFreightChina(v)} /></Field>
+        <Field label="Frete USA → Paraguai (USD)"><NumInput step="0.01" value={freightUSA} onValue={v => setFreightUSA(v)} /></Field>
+        <Field label="Frete Paraguai → Brasil (R$)"><NumInput step="0.01" value={freightBR} onValue={v => setFreightBR(v)} /></Field>
       </div>
 
       <div className="rounded-lg gold-border p-4 grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
@@ -495,12 +537,12 @@ export function SalesTab() {
               <SelectContent>{inventoryKeys.map(k => <SelectItem key={k} value={k}>{k} ({allInventory[k].vials} fr.{db.inventoryConsumo[k] && !db.inventory[k] ? " · pessoal" : ""})</SelectItem>)}</SelectContent>
             </Select>
           </Field>
-          <Field label="Qtd Frascos *"><Input type="number" value={form.qty} onChange={e => setForm({...form, qty: Number(e.target.value)})} /></Field>
-          <Field label="Preço Unit. (R$) *"><Input type="number" step="0.01" value={form.salePrice} onChange={e => setForm({...form, salePrice: Number(e.target.value)})} /></Field>
-          <Field label="Desconto (R$)"><Input type="number" step="0.01" value={form.discount} onChange={e => setForm({...form, discount: Number(e.target.value)})} /></Field>
+          <Field label="Qtd Frascos *"><NumInput value={form.qty} onValue={v => setForm({...form, qty: v})} /></Field>
+          <Field label="Preço Unit. (R$) *"><NumInput step="0.01" value={form.salePrice} onValue={v => setForm({...form, salePrice: v})} /></Field>
+          <Field label="Desconto (R$)"><NumInput step="0.01" value={form.discount} onValue={v => setForm({...form, discount: v})} /></Field>
           {isMarco && (
             <Field label="Custo Operacional Marco (R$)" className="md:col-span-1">
-              <Input type="number" step="0.01" value={form.operationalCost} onChange={e => setForm({...form, operationalCost: Number(e.target.value)})} placeholder="Frete, taxas, etc." />
+              <NumInput step="0.01" value={form.operationalCost} onValue={v => setForm({...form, operationalCost: v})} placeholder="Frete, taxas, etc." />
             </Field>
           )}
           <Field label="Tipo" className="md:col-span-2">
@@ -522,7 +564,7 @@ export function SalesTab() {
               </Select>
             </Field>
             <Field label={form.c1Mode === "PCT" ? `% da venda (= ${fmtBRL(calc.c1Amount)})` : "Valor (R$)"}>
-              <Input type="number" step="0.01" value={form.c1Input} onChange={e => setForm({...form, c1Input: Number(e.target.value)})} />
+              <NumInput step="0.01" value={form.c1Input} onValue={v => setForm({...form, c1Input: v})} />
             </Field>
           </div>
           <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-end">
@@ -534,7 +576,7 @@ export function SalesTab() {
               </Select>
             </Field>
             <Field label={form.c2Mode === "PCT" ? `% da venda (= ${fmtBRL(calc.c2Amount)})` : "Valor (R$)"}>
-              <Input type="number" step="0.01" value={form.c2Input} onChange={e => setForm({...form, c2Input: Number(e.target.value)})} />
+              <NumInput step="0.01" value={form.c2Input} onValue={v => setForm({...form, c2Input: v})} />
             </Field>
           </div>
         </div>
@@ -694,9 +736,9 @@ function EditSaleForm({ sale, onSave, onCancel }: { sale: Sale; onSave: (p: Edit
         <Field label="Cliente"><Input value={client} onChange={e => setClient(e.target.value)} /></Field>
         <Field label="Telefone"><Input value={phone} onChange={e => setPhone(e.target.value)} /></Field>
         <Field label="Produto"><Input value={sale.productName} disabled /></Field>
-        <Field label="Qtd"><Input type="number" value={qty} onChange={e => setQty(Number(e.target.value))} /></Field>
-        <Field label="Preço Unit."><Input type="number" step="0.01" value={salePrice} onChange={e => setSalePrice(Number(e.target.value))} /></Field>
-        <Field label="Desconto"><Input type="number" step="0.01" value={discount} onChange={e => setDiscount(Number(e.target.value))} /></Field>
+        <Field label="Qtd"><NumInput value={qty} onValue={v => setQty(v)} /></Field>
+        <Field label="Preço Unit."><NumInput step="0.01" value={salePrice} onValue={v => setSalePrice(v)} /></Field>
+        <Field label="Desconto"><NumInput step="0.01" value={discount} onValue={v => setDiscount(v)} /></Field>
         <Field label="Tipo" className="md:col-span-2">
           <RadioGroup value={type} onValueChange={v => setType(v as SaleType)} className="flex flex-wrap gap-6 pt-1">
             <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="normal" /> Venda Normal</label>
@@ -706,7 +748,7 @@ function EditSaleForm({ sale, onSave, onCancel }: { sale: Sale; onSave: (p: Edit
         </Field>
         {type === "marco" && (
           <Field label="Custo Operacional Marco (R$)" className="md:col-span-2">
-            <Input type="number" step="0.01" value={operationalCost} onChange={e => setOperationalCost(Number(e.target.value))} />
+            <NumInput step="0.01" value={operationalCost} onValue={v => setOperationalCost(v)} />
           </Field>
         )}
       </div>
@@ -866,11 +908,11 @@ export function MarcoTab() {
           </div>
           <div>
             <Label className="text-xs">Qtd</Label>
-            <Input type="number" min={1} value={wQty} onChange={e => setWQty(Number(e.target.value))} />
+            <NumInput min={1} value={wQty} onValue={v => setWQty(v)} />
           </div>
           <div>
             <Label className="text-xs">Custo un. (R$)</Label>
-            <Input type="number" min={0} step="0.01" value={wCost} onChange={e => setWCost(Number(e.target.value))} />
+            <NumInput min={0} step="0.01" value={wCost} onValue={v => setWCost(v)} />
           </div>
           <div className="flex items-end">
             <Button onClick={addWithdrawal} className="w-full"><Plus className="w-4 h-4 mr-1" />Registrar</Button>
@@ -1003,7 +1045,7 @@ function ExpensesPanel() {
         <Field label="Data"><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
         <Field label="Descrição *"><Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: anúncio, embalagem..." /></Field>
         <Field label="Categoria"><Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Ex: Marketing" /></Field>
-        <Field label="Valor (R$) *"><Input type="number" step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))} /></Field>
+        <Field label="Valor (R$) *"><NumInput step="0.01" value={amount} onValue={v => setAmount(v)} /></Field>
       </div>
       <Button onClick={add} className="gold-gradient"><Plus className="w-4 h-4 mr-1" /> Adicionar Despesa</Button>
 
@@ -1250,7 +1292,7 @@ function ProtocolsTab() {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Dosagem Diária (mg) *"><Input type="number" step="0.01" value={form.dailyDosage} onChange={e => setForm({...form, dailyDosage: Number(e.target.value)})} /></Field>
+          <Field label="Dosagem Diária (mg) *"><NumInput step="0.01" value={form.dailyDosage ?? 0} onValue={v => setForm({...form, dailyDosage: v})} /></Field>
           <Field label="Horário"><Input type="time" value={form.applicationTime} onChange={e => setForm({...form, applicationTime: e.target.value})} /></Field>
         </div>
 

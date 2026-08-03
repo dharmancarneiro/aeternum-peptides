@@ -15,7 +15,8 @@ export type OrderProduct = {
   frascosPerBox: number;   // frascos por box
   qty?: number;            // (legado) total de vials — derivado de boxQty*frascosPerBox
   mgPerVial: number;
-  priceUSD: number;        // preço POR BOX em USD
+  priceUSD: number;        // preço POR BOX na moeda de priceCurrency (legado: sempre USD)
+  priceCurrency?: "USD" | "BRL"; // moeda do preço por box (padrão USD)
   status: OrderStatus;
   usage: ProductUsage;
   consumed?: number;       // frascos já consumidos (usage=consumo)
@@ -147,6 +148,16 @@ export const USD_BRL = 5.06;
 /** Propina Paraguai: USD por vial (todos os vials do pedido) */
 export const PROPINA_PY_USD = 4;
 
+/** Custo da mercadoria do produto (boxes * preço/box) em BRL, respeitando a moeda escolhida */
+export const productCostBRL = (p: OrderProduct) =>
+  (p.boxQty || 0) * (p.priceUSD || 0) * (p.priceCurrency === "BRL" ? 1 : USD_BRL);
+/** Idem, em USD (para exibição no resumo) */
+export const productCostUSD = (p: OrderProduct) =>
+  p.priceCurrency === "BRL" ? productCostBRL(p) / USD_BRL : (p.boxQty || 0) * (p.priceUSD || 0);
+/** Preço por box convertido para USD (para o catálogo de produtos salvos) */
+export const boxPriceUSD = (p: OrderProduct) =>
+  p.priceCurrency === "BRL" ? (p.priceUSD || 0) / USD_BRL : (p.priceUSD || 0);
+
 function normalizeOrderProduct(p: OrderProduct): OrderProduct {
   const legacyQty = Number(p.qty || 0);
   const boxQty = Number(p.boxQty || (legacyQty > 0 ? 1 : 0));
@@ -157,6 +168,7 @@ function normalizeOrderProduct(p: OrderProduct): OrderProduct {
     frascosPerBox,
     qty: boxQty * frascosPerBox,
     consumed: Number(p.consumed || 0),
+    priceCurrency: p.priceCurrency === "BRL" ? "BRL" : "USD",
   };
 }
 
@@ -292,8 +304,8 @@ export function applyOrderToInventory(d: DB, order: Order) {
   let totalCost = 0;
   for (const p of order.products) {
     const vials = vialsOf(p);
-    // priceUSD = preço POR BOX. Custo total mercadoria = boxes * priceUSD
-    const productBRL = (p.boxQty || 0) * p.priceUSD * USD_BRL;
+    // custo total mercadoria = boxes * preço/box, na moeda escolhida (padrão USD)
+    const productBRL = productCostBRL(p);
     const freightAlloc = p.status === "arrived" ? freightPerVial * vials : 0;
     totalCost += productBRL + freightAlloc;
 
@@ -430,19 +442,19 @@ export function recomputeInventories(d: DB) {
       const ex = d.savedProducts.find(sp => sp.name.toLowerCase() === key.toLowerCase());
       if (ex) {
         ex.mgPerVial = p.mgPerVial;
-        ex.priceUSD = p.priceUSD;
+        ex.priceUSD = boxPriceUSD(p);
         ex.frascosPerBox = p.frascosPerBox || ex.frascosPerBox || 1;
       } else {
-        d.savedProducts.push({ name: key, mgPerVial: p.mgPerVial, priceUSD: p.priceUSD, frascosPerBox: p.frascosPerBox || 1 });
+        d.savedProducts.push({ name: key, mgPerVial: p.mgPerVial, priceUSD: boxPriceUSD(p), frascosPerBox: p.frascosPerBox || 1 });
       }
     }
   }
 }
 
 export function computeOrderCost(products: OrderProduct[], fChina: number, fUSA: number, fBR: number) {
-  // valor de produtos em USD = soma( boxes * preço_por_box )
-  const productsUSD = products.reduce((s, p) => s + (p.boxQty || 0) * p.priceUSD, 0);
-  const productsBRL = productsUSD * USD_BRL;
+  // valor de produtos = soma( boxes * preço_por_box ), respeitando a moeda de cada produto
+  const productsUSD = products.reduce((s, p) => s + productCostUSD(p), 0);
+  const productsBRL = products.reduce((s, p) => s + productCostBRL(p), 0);
   const totalOrderVials = products.reduce((s, p) => s + vialsOf(p), 0);
   const propinaUSD = totalOrderVials * PROPINA_PY_USD;
   const propinaBRL = propinaUSD * USD_BRL;
@@ -451,7 +463,7 @@ export function computeOrderCost(products: OrderProduct[], fChina: number, fUSA:
   const freightPerVial = arrivedVials ? freightBRLTotal / arrivedVials : 0;
   const perProduct = products.map(p => {
     const vials = vialsOf(p);
-    const productPerVialBRL = vials ? ((p.boxQty || 0) * p.priceUSD * USD_BRL) / vials : 0;
+    const productPerVialBRL = vials ? productCostBRL(p) / vials : 0;
     const freightAlloc = p.status === "arrived" ? freightPerVial : 0;
     const costPerVial = productPerVialBRL + freightAlloc;
     return {
