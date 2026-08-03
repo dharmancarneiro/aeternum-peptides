@@ -413,14 +413,17 @@ export function OrdersTab() {
           <TableHeader><TableRow>
             <TableHead>Data</TableHead><TableHead>Fornecedor</TableHead>
             <TableHead>Produtos</TableHead><TableHead>Status</TableHead>
+            <TableHead className="text-right">Custo Produtos</TableHead>
+            <TableHead className="text-right">Custo Logístico</TableHead>
             <TableHead className="text-right">Custo Total</TableHead><TableHead></TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {orders.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sem pedidos</TableCell></TableRow>}
+            {orders.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sem pedidos</TableCell></TableRow>}
             {orders.map(o => {
               const arrived = o.products.filter(p => p.status === "arrived").length;
               const lost = o.products.filter(p => p.status === "lost").length;
               const rebuy = o.products.filter(p => p.status === "rebuy").length;
+              const cost = computeOrderCost(o.products, o.freightChina, o.freightUSA, o.freightBR, o.directBR);
               return (
                 <TableRow key={o.id}>
                   <TableCell>{format(parseDay(o.date), "dd/MM/yyyy")}</TableCell>
@@ -438,7 +441,18 @@ export function OrdersTab() {
                     {lost > 0 && <Badge className="bg-destructive mr-1">✗ {lost}</Badge>}
                     {rebuy > 0 && <Badge variant="outline" className="border-primary/50">↻ {rebuy}</Badge>}
                   </TableCell>
-                  <TableCell className="text-right text-primary">{fmtBRL(o.totalCost)}</TableCell>
+                  <TableCell className="text-right">
+                    <span title="Mercadoria (boxes × preço/box)">{fmtBRL(cost.productsBRL)}</span>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    <span title={`Fretes ${fmtBRL(cost.freightBRLTotal - cost.propinaBRL)} + propina PY ${fmtBRL(cost.propinaBRL)}`}>
+                      {fmtBRL(cost.freightBRLTotal)}
+                    </span>
+                    {cost.propinaBRL > 0 && (
+                      <p className="text-[9px] text-muted-foreground/70">frete {fmtBRL(cost.freightBRLTotal - cost.propinaBRL)} · propina {fmtBRL(cost.propinaBRL)}</p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right text-primary font-semibold">{fmtBRL(o.totalCost)}</TableCell>
                   <TableCell className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => { setEditing(o); setOpenEdit(true); }}><Pencil className="w-4 h-4 text-primary" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => remove(o.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
