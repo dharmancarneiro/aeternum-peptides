@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AeternumLogo } from "@/components/AeternumLogo";
-import { setRole } from "@/lib/storage";
+import { setRole, setInfluencerName, loadDB } from "@/lib/storage";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Lock } from "lucide-react";
@@ -37,8 +37,20 @@ function Login() {
       setRole("marco");
       toast.success("Bem-vindo, Marco");
       navigate({ to: "/marco" });
+    } else if (pass === "DereckPeps$") {
+      setRole("dereck");
+      toast.success("Bem-vindo, Dereck");
+      navigate({ to: "/dereck" });
     } else {
-      toast.error("Senha incorreta");
+      const inf = pass.length >= 6 ? (loadDB().influencers || []).find(i => i.pass === pass) : undefined;
+      if (inf) {
+        setRole("influencer");
+        setInfluencerName(inf.name);
+        toast.success(`Bem-vindo, ${inf.name}`);
+        navigate({ to: "/influencer" });
+      } else {
+        toast.error("Senha incorreta");
+      }
     }
   };
 

@@ -44,7 +44,7 @@ export type Order = {
   totalCost: number; // BRL
 };
 
-export type SaleType = "normal" | "sample" | "marco";
+export type SaleType = "normal" | "sample" | "marco" | "dereck";
 
 export type Sale = {
   id: string;
@@ -119,6 +119,12 @@ export const MARCO_WITHDRAWAL_CATALOG: { product: string; unitCost: number }[] =
   { product: "GH 200 UI", unitCost: 1400 },
 ];
 
+/** Afiliado/influenciador gerido pelo Dereck; a senha dá acesso ao painel /influencer */
+export type Influencer = {
+  name: string;
+  pass: string;
+};
+
 export type DB = {
   orders: Order[];
   sales: Sale[];
@@ -129,6 +135,8 @@ export type DB = {
   savedProducts: SavedProduct[]; // catálogo p/ autocompletar
   expenses: Expense[];           // despesas / investimentos
   marcoWithdrawals?: MarcoWithdrawal[]; // retiradas do Marco (descontam comissão)
+  dereckWithdrawals?: MarcoWithdrawal[]; // retiradas do Dereck (descontam comissão)
+  influencers?: Influencer[]; // afiliados geridos pelo Dereck (nome + senha de acesso)
 };
 
 export const EMPTY_DB: DB = {
@@ -141,6 +149,8 @@ export const EMPTY_DB: DB = {
   savedProducts: [],
   expenses: [],
   marcoWithdrawals: [],
+  dereckWithdrawals: [],
+  influencers: [],
 };
 
 const KEY = "aeturnum_db_v2";
@@ -186,6 +196,8 @@ function normalizeDB(parsed: Partial<DB>): DB {
     savedProducts: Array.isArray(parsed.savedProducts) ? parsed.savedProducts : [],
     expenses: Array.isArray(parsed.expenses) ? parsed.expenses : [],
     marcoWithdrawals: Array.isArray(parsed.marcoWithdrawals) ? parsed.marcoWithdrawals : [],
+    dereckWithdrawals: Array.isArray(parsed.dereckWithdrawals) ? parsed.dereckWithdrawals : [],
+    influencers: Array.isArray(parsed.influencers) ? parsed.influencers : [],
   };
   db.orders = db.orders.map(o => ({
     ...o,
@@ -382,10 +394,11 @@ function recalcSaleFromCurrentStock(d: DB, sale: Sale) {
   let profit = 0;
   if (sale.type === "sample") {
     profit = -productCost;
-  } else if (sale.type === "marco") {
-    const marcoProfit = net - MARCO_UNIT_COST_BRL * sale.qty - (sale.operationalCost || 0);
-    const marcoCommission = Math.max(0, marcoProfit / 2);
-    profit = net - productCost - marcoCommission;
+  } else if (sale.type === "marco" || sale.type === "dereck") {
+    // parceria (Marco ou Dereck): custo fixo R$500/un, lucro dividido 50/50
+    const partnerProfit = net - MARCO_UNIT_COST_BRL * sale.qty - (sale.operationalCost || 0);
+    const partnerCommission = Math.max(0, partnerProfit / 2);
+    profit = net - productCost - partnerCommission;
   } else {
     profit = net - productCost;
   }
@@ -592,7 +605,16 @@ export function importBackup(file: File): Promise<void> {
 
 // Auth (persistente — não pede senha de novo a cada visita)
 export const AUTH_KEY = "aeturnum_role";
-export type Role = "admin" | "user" | "marco";
+export type Role = "admin" | "user" | "marco" | "dereck" | "influencer";
+/** Nome do influenciador logado (quando role = "influencer") */
+export const INFLUENCER_KEY = "aeturnum_influencer";
+export function setInfluencerName(name: string) {
+  localStorage.setItem(INFLUENCER_KEY, name);
+}
+export function getInfluencerName(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(INFLUENCER_KEY);
+}
 export function setRole(r: Role) {
   localStorage.setItem(AUTH_KEY, r);
   sessionStorage.setItem(AUTH_KEY, r);
@@ -611,9 +633,12 @@ export function getPass(): string | null {
   if (r === "admin") return "AeternumPeps$";
   if (r === "user") return "DharmanPeps$";
   if (r === "marco") return "AeternumPeps$"; // Marco compartilha os mesmos dados do admin
+  if (r === "dereck") return "AeternumPeps$"; // Dereck idem
+  if (r === "influencer") return "AeternumPeps$"; // influenciador idem (leitura)
   return null;
 }
 export function clearRole() {
   localStorage.removeItem(AUTH_KEY);
   sessionStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(INFLUENCER_KEY);
 }

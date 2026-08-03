@@ -908,5 +908,12 @@ export const SEED_DB = {
       "product": "Acerto de Comissão",
       "unitCost": 845.5
     }
-  ]
+  ],
+  "influencers": [
+    {
+      "name": "Levi",
+      "pass": "LeviPeps$"
+    }
+  ],
+  "dereckWithdrawals": []
 } as unknown as DB;

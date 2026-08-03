@@ -93,7 +93,7 @@ function AdminPanel() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {tab !== "marco" && (
+        {tab !== "marco" && tab !== "dereck" && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard icon={<Wallet />} label="Investimento" value={fmtBRL(totals.investment)} tone="red" />
             <MetricCard icon={<DollarSign />} label="Receita" value={fmtBRL(totals.revenue)} tone="green" />
@@ -107,6 +107,7 @@ function AdminPanel() {
             <TabsTrigger value="orders" className="data-[state=active]:gold-gradient data-[state=active]:text-primary-foreground"><Package className="w-4 h-4 mr-1" /> Pedidos</TabsTrigger>
             <TabsTrigger value="sales" className="data-[state=active]:gold-gradient data-[state=active]:text-primary-foreground"><ShoppingCart className="w-4 h-4 mr-1" /> Vendas</TabsTrigger>
             <TabsTrigger value="marco" className="data-[state=active]:bg-[oklch(0.55_0.18_270)] data-[state=active]:text-white"><DollarSign className="w-4 h-4 mr-1" /> Marco Túlio</TabsTrigger>
+            <TabsTrigger value="dereck" className="data-[state=active]:bg-[oklch(0.55_0.15_180)] data-[state=active]:text-white"><Users className="w-4 h-4 mr-1" /> Dereck</TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:gold-gradient data-[state=active]:text-primary-foreground"><BarChart3 className="w-4 h-4 mr-1" /> Relatórios</TabsTrigger>
             <TabsTrigger value="partners" className="data-[state=active]:gold-gradient data-[state=active]:text-primary-foreground"><Users className="w-4 h-4 mr-1" /> Parceiros</TabsTrigger>
             <TabsTrigger value="protocols" className="data-[state=active]:gold-gradient data-[state=active]:text-primary-foreground"><Syringe className="w-4 h-4 mr-1" /> Protocolos</TabsTrigger>
@@ -115,6 +116,7 @@ function AdminPanel() {
           <TabsContent value="orders" className="mt-6"><OrdersTab /></TabsContent>
           <TabsContent value="sales" className="mt-6"><SalesTab /></TabsContent>
           <TabsContent value="marco" className="mt-6"><MarcoTab /></TabsContent>
+          <TabsContent value="dereck" className="mt-6"><MarcoTab variant="dereck" /></TabsContent>
           <TabsContent value="reports" className="mt-6"><ReportsTab /></TabsContent>
           <TabsContent value="partners" className="mt-6"><PartnersTab /></TabsContent>
           <TabsContent value="protocols" className="mt-6"><ProtocolsTab /></TabsContent>
@@ -481,7 +483,7 @@ export function SalesTab() {
 
 
   const calc = useMemo(() => {
-    const isMarco = form.type === "marco";
+    const isMarco = form.type === "marco" || form.type === "dereck";
     const item = allInventory[form.productKey];
 
     const gross = form.qty * form.salePrice;
@@ -514,7 +516,7 @@ export function SalesTab() {
   }, [form, db.inventory]);
 
   const submit = () => {
-    const isMarco = form.type === "marco";
+    const isMarco = form.type === "marco" || form.type === "dereck";
     if (!form.client) return toast.error("Cliente é obrigatório");
     if (!form.productKey) return toast.error("Selecione o produto");
     const item = allInventory[form.productKey];
@@ -539,12 +541,13 @@ export function SalesTab() {
     toast.success("Venda registrada");
   };
 
-  const isMarco = form.type === "marco";
+  const isMarco = form.type === "marco" || form.type === "dereck";
+  const isDereck = form.type === "dereck";
 
   return (
     <div className="space-y-6">
       <div className="glass-card rounded-xl p-6 space-y-4">
-        <h3 className="font-serif text-xl gold-text">Nova Venda <span className="text-xs text-muted-foreground font-sans normal-case">(custo real do seu estoque{isMarco ? " · espelhada para Marco Túlio" : ""})</span></h3>
+        <h3 className="font-serif text-xl gold-text">Nova Venda <span className="text-xs text-muted-foreground font-sans normal-case">(custo real do seu estoque{isMarco ? ` · espelhada para ${isDereck ? "Dereck" : "Marco Túlio"}` : ""})</span></h3>
         <div className="grid md:grid-cols-3 gap-4">
           <Field label="Data *"><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} /></Field>
           <Field label="Cliente *"><Input value={form.client} onChange={e => setForm({...form, client: e.target.value})} /></Field>
@@ -559,7 +562,7 @@ export function SalesTab() {
           <Field label="Preço Unit. (R$) *"><NumInput step="0.01" value={form.salePrice} onValue={v => setForm({...form, salePrice: v})} /></Field>
           <Field label="Desconto (R$)"><NumInput step="0.01" value={form.discount} onValue={v => setForm({...form, discount: v})} /></Field>
           {isMarco && (
-            <Field label="Custo Operacional Marco (R$)" className="md:col-span-1">
+            <Field label={`Custo Operacional ${isDereck ? "Dereck" : "Marco"} (R$)`} className="md:col-span-1">
               <NumInput step="0.01" value={form.operationalCost} onValue={v => setForm({...form, operationalCost: v})} placeholder="Frete, taxas, etc." />
             </Field>
           )}
@@ -568,13 +571,15 @@ export function SalesTab() {
               <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="normal" /> Venda Normal</label>
               <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="sample" /> Amostra</label>
               <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="marco" /> Marco Túlio</label>
+              <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="dereck" /> Dereck</label>
             </RadioGroup>
-            {isMarco && <p className="text-[10px] text-muted-foreground mt-1">Aqui mostra seu lucro REAL (custo do seu estoque − distribuição de lucros do Marco). O painel dele só vê custo R$ {MARCO_UNIT_COST_BRL}/un.</p>}
+            {isMarco && <p className="text-[10px] text-muted-foreground mt-1">Aqui mostra seu lucro REAL (custo do seu estoque − distribuição de lucros do {isDereck ? "Dereck" : "Marco"}). O painel dele só vê custo R$ {MARCO_UNIT_COST_BRL}/un.</p>}
+            {isDereck && <p className="text-[10px] text-muted-foreground mt-1">Comissão 1 = afiliado/influenciador que gerou a venda (aparece no painel dele). A comissão do Dereck é a metade do lucro da parceria.</p>}
           </Field>
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-end">
-            <Field label="Comissão 1 - Parceiro"><Input value={form.c1Name} onChange={e => setForm({...form, c1Name: e.target.value})} /></Field>
+            <Field label={isDereck ? "Comissão 1 - Afiliado/Influenciador" : "Comissão 1 - Parceiro"}><Input value={form.c1Name} onChange={e => setForm({...form, c1Name: e.target.value})} /></Field>
             <Field label="Tipo">
               <Select value={form.c1Mode} onValueChange={v => setForm({...form, c1Mode: v as "BRL" | "PCT"})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -603,7 +608,7 @@ export function SalesTab() {
           <Calc label="Receita Bruta" v={fmtBRL(calc.gross)} />
           <Calc label="Receita Líquida" v={fmtBRL(calc.net)} />
           <Calc label="Custo Total" v={fmtBRL(calc.productCost)} />
-          <Calc label={isMarco ? "Meu Lucro (líq. comissão Marco)" : "Lucro"} v={fmtBRL(calc.profit)} highlight />
+          <Calc label={isMarco ? `Meu Lucro (líq. comissão ${isDereck ? "Dereck" : "Marco"})` : "Lucro"} v={fmtBRL(calc.profit)} highlight />
           <Calc label="Margem" v={fmtPct(calc.margin)} />
         </div>
         <Button onClick={submit} className="gold-gradient"><Plus className="w-4 h-4 mr-1" /> Registrar Venda</Button>
@@ -635,6 +640,7 @@ export function SalesTab() {
                   {s.type === "sample" && <Badge variant="outline">Amostra</Badge>}
                   {s.type === "normal" && <Badge className="gold-gradient">Venda</Badge>}
                   {s.type === "marco" && <Badge className="bg-[oklch(0.55_0.18_270)] text-white">Marco Túlio</Badge>}
+                  {s.type === "dereck" && <Badge className="bg-[oklch(0.55_0.15_180)] text-white">Dereck</Badge>}
                 </TableCell>
                 <TableCell className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => setEditingSale(s)}><Pencil className="w-4 h-4 text-primary" /></Button>
@@ -666,7 +672,7 @@ export function SalesTab() {
                     productCost = unitCost * patch.qty;
                     net = 0;
                     profit = -productCost;
-                  } else if (nextType === "marco") {
+                  } else if (nextType === "marco" || nextType === "dereck") {
                     productCost = MARCO_UNIT_COST_BRL * patch.qty + (patch.operationalCost || 0);
                     net = gross - patch.discount - commissions;
                     profit = (net - productCost) / 2;
@@ -683,7 +689,7 @@ export function SalesTab() {
                     date: patch.date, client: patch.client, phone: patch.phone,
                     qty: patch.qty, salePrice: patch.salePrice, discount: patch.discount,
                     type: nextType,
-                    operationalCost: nextType === "marco" ? patch.operationalCost : undefined,
+                    operationalCost: nextType === "marco" || nextType === "dereck" ? patch.operationalCost : undefined,
                     grossRevenue: gross, netRevenue: net, productCost, profit,
                   };
                 }
@@ -729,7 +735,7 @@ function EditSaleForm({ sale, onSave, onCancel }: { sale: Sale; onSave: (p: Edit
       productCost = unitCostStock * qty;
       net = 0;
       profit = -productCost;
-    } else if (type === "marco") {
+    } else if (type === "marco" || type === "dereck") {
       productCost = unitCostStock * qty;
       net = gross - discount - commissions;
       const grossProfit = net - productCost;
@@ -762,10 +768,11 @@ function EditSaleForm({ sale, onSave, onCancel }: { sale: Sale; onSave: (p: Edit
             <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="normal" /> Venda Normal</label>
             <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="sample" /> Amostra</label>
             <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="marco" /> Marco Túlio</label>
+            <label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="dereck" /> Dereck</label>
           </RadioGroup>
         </Field>
-        {type === "marco" && (
-          <Field label="Custo Operacional Marco (R$)" className="md:col-span-2">
+        {(type === "marco" || type === "dereck") && (
+          <Field label={`Custo Operacional ${type === "dereck" ? "Dereck" : "Marco"} (R$)`} className="md:col-span-2">
             <NumInput step="0.01" value={operationalCost} onValue={v => setOperationalCost(v)} />
           </Field>
         )}
@@ -782,18 +789,18 @@ function EditSaleForm({ sale, onSave, onCancel }: { sale: Sale; onSave: (p: Edit
           <Calc label="Receita Líquida" v={fmtBRL(calc.net)} />
           <Calc label={`Custo Mercadoria (${qty} × ${fmtBRL(calc.unitCostStock)})`} v={fmtBRL(calc.productCost)} />
         </div>
-        {type === "marco" && (
+        {(type === "marco" || type === "dereck") && (
           <div className="border-t border-primary/20 pt-3 space-y-2">
-            <p className="text-[10px] uppercase tracking-wider text-[oklch(0.75_0.18_270)] font-semibold">Parceria Marco Túlio</p>
+            <p className="text-[10px] uppercase tracking-wider text-[oklch(0.75_0.18_270)] font-semibold">Parceria {type === "dereck" ? "Dereck" : "Marco Túlio"}</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Calc label={`Custo Marco (${qty} × R$ ${MARCO_UNIT_COST_BRL})`} v={fmtBRL(calc.marcoCost)} />
+              <Calc label={`Custo ${type === "dereck" ? "Dereck" : "Marco"} (${qty} × R$ ${MARCO_UNIT_COST_BRL})`} v={fmtBRL(calc.marcoCost)} />
               <Calc label="Custo Operacional" v={fmtBRL(calc.marcoOp)} />
               <Calc label="Lucro Total (parceria)" v={fmtBRL(calc.marcoTotalProfit)} />
-              <Calc label="Distribuição Sócio Marcos (50%)" v={fmtBRL(calc.marcoCommission)} />
+              <Calc label={`Distribuição ${type === "dereck" ? "Sócio Dereck" : "Sócio Marcos"} (50%)`} v={fmtBRL(calc.marcoCommission)} />
               <Calc label="Distribuição Sócio Dharman (50%)" v={fmtBRL(calc.marcoCommission)} />
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Seu lucro = (Líquido − Custo Mercadoria) − Distribuição Sócio Marcos<br />
+              Seu lucro = (Líquido − Custo Mercadoria) − Distribuição do sócio<br />
               = ({fmtBRL(calc.net)} − {fmtBRL(calc.productCost)}) − {fmtBRL(calc.marcoCommission)} = <span className="text-primary font-semibold">{fmtBRL(calc.profit)}</span>
             </p>
           </div>
@@ -822,23 +829,71 @@ function EditSaleForm({ sale, onSave, onCancel }: { sale: Sale; onSave: (p: Edit
   );
 }
 
-/* ---------------- MARCO TÚLIO (visão da parceria — sem dados do cliente) ---------------- */
-export function MarcoTab() {
-  const { db, update } = useDB();
+/* ---------------- PARCERIAS (Marco Túlio / Dereck) — visão da parceria ---------------- */
+type PartnerVariant = "marco" | "dereck";
+const PARTNER_CFG: Record<PartnerVariant, { title: string; partnerLabel: string; saleType: SaleType }> = {
+  marco: { title: "Marco Túlio", partnerLabel: "Sócio Marcos", saleType: "marco" },
+  dereck: { title: "Dereck", partnerLabel: "Sócio Dereck", saleType: "dereck" },
+};
 
-  const marcoSales = useMemo(
-    () => [...db.sales].filter(s => s.type === "marco").sort((a, b) => b.date.localeCompare(a.date)),
-    [db.sales]
+const nameMatches = (a?: string, b?: string) =>
+  (a || "").trim().toLowerCase() === (b || "").trim().toLowerCase();
+
+export function MarcoTab({ variant = "marco" }: { variant?: PartnerVariant }) {
+  const { db, update } = useDB();
+  const cfg = PARTNER_CFG[variant];
+
+  const partnerSales = useMemo(
+    () => [...db.sales].filter(s => s.type === cfg.saleType).sort((a, b) => b.date.localeCompare(a.date)),
+    [db.sales, cfg.saleType]
   );
 
   const withdrawals = useMemo(
-    () => [...(db.marcoWithdrawals || [])].sort((a, b) => b.date.localeCompare(a.date)),
-    [db.marcoWithdrawals]
+    () => [...((variant === "marco" ? db.marcoWithdrawals : db.dereckWithdrawals) || [])].sort((a, b) => b.date.localeCompare(a.date)),
+    [db.marcoWithdrawals, db.dereckWithdrawals, variant]
   );
+
+  // Comissões avulsas em nome do Dereck (qualquer venda, comissão 1 ou 2)
+  const looseCommissions = useMemo(() => {
+    if (variant !== "dereck") return [] as { sale: Sale; amount: number }[];
+    const rows: { sale: Sale; amount: number }[] = [];
+    for (const s of db.sales) {
+      let amount = 0;
+      if (nameMatches(s.commission1?.name, "Dereck") || nameMatches(s.commission1?.name, "Derek")) amount += s.commission1?.amount || 0;
+      if (nameMatches(s.commission2?.name, "Dereck") || nameMatches(s.commission2?.name, "Derek")) amount += s.commission2?.amount || 0;
+      if (amount > 0) rows.push({ sale: s, amount });
+    }
+    return rows.sort((a, b) => b.sale.date.localeCompare(a.sale.date));
+  }, [db.sales, variant]);
+
+  // Comissões de afiliados/influenciadores nas vendas da parceria Dereck
+  const affiliateRows = useMemo(() => {
+    if (variant !== "dereck") return [] as { sale: Sale; name: string; amount: number }[];
+    const rows: { sale: Sale; name: string; amount: number }[] = [];
+    for (const s of partnerSales) {
+      for (const c of [s.commission1, s.commission2]) {
+        if (c && c.name && !nameMatches(c.name, "Dereck") && !nameMatches(c.name, "Derek")) {
+          rows.push({ sale: s, name: c.name.trim(), amount: c.amount });
+        }
+      }
+    }
+    return rows;
+  }, [partnerSales, variant]);
+
+  const affiliateTotals = useMemo(() => {
+    const map = new Map<string, { name: string; sales: number; qty: number; commission: number }>();
+    for (const r of affiliateRows) {
+      const key = r.name.toLowerCase();
+      const cur = map.get(key) || { name: r.name, sales: 0, qty: 0, commission: 0 };
+      cur.sales += 1; cur.qty += r.sale.qty; cur.commission += r.amount;
+      map.set(key, cur);
+    }
+    return [...map.values()].sort((a, b) => b.commission - a.commission);
+  }, [affiliateRows]);
 
   const totals = useMemo(() => {
     let qty = 0, gross = 0, net = 0, productCost = 0, operational = 0, totalProfit = 0;
-    for (const s of marcoSales) {
+    for (const s of partnerSales) {
       qty += s.qty;
       gross += s.grossRevenue;
       net += s.netRevenue;
@@ -847,18 +902,22 @@ export function MarcoTab() {
       totalProfit += s.netRevenue - MARCO_UNIT_COST_BRL * s.qty - (s.operationalCost || 0);
     }
     const withdrawalsTotal = withdrawals.reduce((s, w) => s + w.qty * w.unitCost, 0);
-    const marcoShare = totalProfit / 2;
+    const partnerShare = totalProfit / 2;
+    const loose = looseCommissions.reduce((s, r) => s + r.amount, 0);
+    const affiliates = affiliateRows.reduce((s, r) => s + r.amount, 0);
     return {
       qty, gross, net, productCost, operational,
       totalProfit,
-      myShare: marcoShare,
-      marcoCommission: marcoShare,
+      myShare: partnerShare,
+      partnerCommission: partnerShare + loose,
       withdrawalsTotal,
-      marcoNet: marcoShare - withdrawalsTotal,
+      partnerNet: partnerShare + loose - withdrawalsTotal,
+      loose,
+      affiliates,
     };
-  }, [marcoSales, withdrawals]);
+  }, [partnerSales, withdrawals, looseCommissions, affiliateRows]);
 
-  // form state
+  // form state (retiradas)
   const [wDate, setWDate] = useState(new Date().toISOString().slice(0, 10));
   const [wProduct, setWProduct] = useState(MARCO_WITHDRAWAL_CATALOG[0].product);
   const [wQty, setWQty] = useState(1);
@@ -878,13 +937,19 @@ export function MarcoTab() {
       qty: Number(wQty), unitCost: Number(wCost),
       note: wNote.trim() || undefined,
     };
-    update(d => { d.marcoWithdrawals = [...(d.marcoWithdrawals || []), w]; });
+    update(d => {
+      if (variant === "marco") d.marcoWithdrawals = [...(d.marcoWithdrawals || []), w];
+      else d.dereckWithdrawals = [...(d.dereckWithdrawals || []), w];
+    });
     setWQty(1); setWNote("");
-    toast.success("Retirada registrada — descontada da comissão do Marco");
+    toast.success(`Retirada registrada — descontada da comissão do ${cfg.title}`);
   };
 
   const removeWithdrawal = (id: string) => {
-    update(d => { d.marcoWithdrawals = (d.marcoWithdrawals || []).filter(w => w.id !== id); });
+    update(d => {
+      if (variant === "marco") d.marcoWithdrawals = (d.marcoWithdrawals || []).filter(w => w.id !== id);
+      else d.dereckWithdrawals = (d.dereckWithdrawals || []).filter(w => w.id !== id);
+    });
   };
 
   return (
@@ -894,22 +959,31 @@ export function MarcoTab() {
         <MetricCard icon={<DollarSign />} label="Receita Líquida" value={fmtBRL(totals.net)} tone="green" />
         <MetricCard icon={<TrendingUp />} label="Lucro Total (a dividir)" value={fmtBRL(totals.totalProfit)} tone="gold" />
         <MetricCard icon={<Target />} label="Sócio Dharman (50%)" value={fmtBRL(totals.myShare)} tone="gold" />
-        <MetricCard icon={<Target />} label="Sócio Marcos — Saldo a Pagar" value={fmtBRL(totals.marcoNet)} tone={totals.marcoNet >= 0 ? "gold" : "red"} />
+        <MetricCard icon={<Target />} label={`${cfg.partnerLabel} — Saldo a Pagar`} value={fmtBRL(totals.partnerNet)} tone={totals.partnerNet >= 0 ? "gold" : "red"} />
       </div>
 
-      {totals.withdrawalsTotal > 0 && (
+      {variant === "dereck" && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <MetricCard icon={<Users />} label="Comissões de Afiliados" value={fmtBRL(totals.affiliates)} tone="gold" />
+          <MetricCard icon={<DollarSign />} label="Comissões Avulsas Dereck" value={fmtBRL(totals.loose)} tone="gold" />
+          <MetricCard icon={<ShoppingCart />} label="Frascos Vendidos" value={String(totals.qty)} tone="green" />
+        </div>
+      )}
+
+      {(totals.withdrawalsTotal > 0 || totals.loose > 0) && (
         <div className="glass-card rounded-xl p-4 text-sm">
           <div className="flex flex-wrap gap-6">
-            <span>Comissão bruta Marcos: <b className="text-primary">{fmtBRL(totals.myShare)}</b></span>
+            <span>Comissão parceria (50%): <b className="text-primary">{fmtBRL(totals.myShare)}</b></span>
+            {totals.loose > 0 && <span>Comissões avulsas: <b className="text-primary">+ {fmtBRL(totals.loose)}</b></span>}
             <span>Retiradas: <b className="text-destructive">− {fmtBRL(totals.withdrawalsTotal)}</b></span>
-            <span>Saldo líquido a pagar: <b className="gold-text">{fmtBRL(totals.marcoNet)}</b></span>
+            <span>Saldo líquido a pagar: <b className="gold-text">{fmtBRL(totals.partnerNet)}</b></span>
           </div>
         </div>
       )}
 
-      {/* Retiradas do Marco (descontam da comissão) */}
+      {/* Retiradas (descontam da comissão) */}
       <div className="glass-card rounded-xl p-6">
-        <h3 className="font-serif text-xl gold-text mb-1">Retiradas Marco (produtos p/ ele)</h3>
+        <h3 className="font-serif text-xl gold-text mb-1">Retiradas {cfg.title} (produtos p/ ele)</h3>
         <p className="text-xs text-muted-foreground mb-4">O valor é descontado automaticamente da comissão dele. Preços padrão: Retatrutide R$ 500 · GH 200 UI R$ 1.400.</p>
 
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
@@ -919,8 +993,8 @@ export function MarcoTab() {
           </div>
           <div className="md:col-span-2">
             <Label className="text-xs">Produto</Label>
-            <Input list="marco-catalog" value={wProduct} onChange={e => pickProduct(e.target.value)} />
-            <datalist id="marco-catalog">
+            <Input list={`${variant}-catalog`} value={wProduct} onChange={e => pickProduct(e.target.value)} />
+            <datalist id={`${variant}-catalog`}>
               {MARCO_WITHDRAWAL_CATALOG.map(c => <option key={c.product} value={c.product} />)}
             </datalist>
           </div>
@@ -977,36 +1051,103 @@ export function MarcoTab() {
         </div>
       </div>
 
+      {variant === "dereck" && (
+        <>
+          {/* Resumo por afiliado/influenciador */}
+          <div className="glass-card rounded-xl p-6 overflow-x-auto">
+            <h3 className="font-serif text-xl gold-text mb-1">Comissões por Afiliado</h3>
+            <p className="text-xs text-muted-foreground mb-3">Soma das comissões dos influenciadores nas vendas da parceria Dereck.</p>
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Afiliado</TableHead>
+                <TableHead>Vendas</TableHead>
+                <TableHead>Frascos</TableHead>
+                <TableHead className="text-right">Comissão Total</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {affiliateTotals.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Nenhuma comissão de afiliado ainda.</TableCell></TableRow>}
+                {affiliateTotals.map(a => (
+                  <TableRow key={a.name}>
+                    <TableCell className="font-semibold">{a.name}</TableCell>
+                    <TableCell>{a.sales}</TableCell>
+                    <TableCell>{a.qty}</TableCell>
+                    <TableCell className="text-right text-primary font-semibold">{fmtBRL(a.commission)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Comissões avulsas do Dereck */}
+          {looseCommissions.length > 0 && (
+            <div className="glass-card rounded-xl p-6 overflow-x-auto">
+              <h3 className="font-serif text-xl gold-text mb-1">Comissões Avulsas Dereck</h3>
+              <p className="text-xs text-muted-foreground mb-3">Comissões em nome do Dereck lançadas em vendas fora da parceria (entram no saldo a pagar).</p>
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Qtd</TableHead>
+                  <TableHead className="text-right">Comissão</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {looseCommissions.map(r => (
+                    <TableRow key={r.sale.id}>
+                      <TableCell>{format(parseDay(r.sale.date), "dd/MM/yyyy")}</TableCell>
+                      <TableCell>{r.sale.productName}</TableCell>
+                      <TableCell>{r.sale.qty}</TableCell>
+                      <TableCell className="text-right text-primary font-semibold">{fmtBRL(r.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <InfluencerAccessCard />
+        </>
+      )}
+
       <div className="glass-card rounded-xl p-6 overflow-x-auto">
         <h3 className="font-serif text-xl gold-text mb-4">Operações da Parceria</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          Total: {marcoSales.length} venda(s) · {totals.qty} frasco(s)
+          Total: {partnerSales.length} venda(s) · {totals.qty} frasco(s)
         </p>
         <Table>
           <TableHeader><TableRow>
             <TableHead>Data</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>Produto</TableHead>
+            {variant === "dereck" && <TableHead>Afiliado</TableHead>}
             <TableHead>Qtd</TableHead>
             <TableHead className="text-right">Líquido</TableHead>
             <TableHead className="text-right">Custo (500/un)</TableHead>
             <TableHead className="text-right">Custo Op.</TableHead>
             <TableHead className="text-right">Lucro Total</TableHead>
-            <TableHead className="text-right">Sócio Marcos</TableHead>
+            <TableHead className="text-right">{cfg.partnerLabel}</TableHead>
             <TableHead className="text-right">Sócio Dharman</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {marcoSales.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Nenhuma venda marcada como Marco Túlio ainda.</TableCell></TableRow>}
-            {marcoSales.map(s => {
+            {partnerSales.length === 0 && <TableRow><TableCell colSpan={variant === "dereck" ? 11 : 10} className="text-center text-muted-foreground">Nenhuma venda da parceria {cfg.title} ainda.</TableCell></TableRow>}
+            {partnerSales.map(s => {
               const cost = MARCO_UNIT_COST_BRL * s.qty;
               const op = s.operationalCost || 0;
               const tp = s.netRevenue - cost - op;
               const share = tp / 2;
+              const affiliates = [s.commission1, s.commission2]
+                .filter((c): c is NonNullable<typeof c> => Boolean(c && c.name && !nameMatches(c.name, "Dereck") && !nameMatches(c.name, "Derek")));
               return (
                 <TableRow key={s.id}>
                   <TableCell>{format(parseDay(s.date), "dd/MM/yyyy")}</TableCell>
                   <TableCell>{s.client || "—"}</TableCell>
                   <TableCell>{s.productName}</TableCell>
+                  {variant === "dereck" && (
+                    <TableCell className="text-xs">
+                      {affiliates.length === 0 ? "—" : affiliates.map((c, i) => (
+                        <div key={i}>{c.name} <span className="text-primary">({fmtBRL(c.amount)})</span></div>
+                      ))}
+                    </TableCell>
+                  )}
                   <TableCell>{s.qty}</TableCell>
 
                   <TableCell className="text-right">{fmtBRL(s.netRevenue)}</TableCell>
@@ -1021,6 +1162,67 @@ export function MarcoTab() {
           </TableBody>
         </Table>
       </div>
+    </div>
+  );
+}
+
+/* Acessos dos influenciadores (gestão do Dereck) */
+function InfluencerAccessCard() {
+  const { db, update } = useDB();
+  const [name, setName] = useState("");
+  const [pass, setPass] = useState("");
+  const influencers = db.influencers || [];
+
+  const add = () => {
+    const n = name.trim(), p = pass.trim();
+    if (!n || p.length < 6) return toast.error("Informe nome e senha (mín. 6 caracteres)");
+    if (["AeternumPeps$", "DharmanPeps$", "MarcoPeps$", "DereckPeps$"].includes(p)) return toast.error("Senha reservada, escolha outra");
+    if (influencers.some(i => nameMatches(i.name, n))) return toast.error("Influenciador já cadastrado");
+    if (influencers.some(i => i.pass === p)) return toast.error("Senha já usada por outro influenciador");
+    update(d => { d.influencers = [...(d.influencers || []), { name: n, pass: p }]; });
+    setName(""); setPass("");
+    toast.success(`Acesso criado para ${n}`);
+  };
+
+  const remove = (n: string) => {
+    update(d => { d.influencers = (d.influencers || []).filter(i => !nameMatches(i.name, n)); });
+    toast.success("Acesso removido");
+  };
+
+  return (
+    <div className="glass-card rounded-xl p-6">
+      <h3 className="font-serif text-xl gold-text mb-1">Acessos dos Influenciadores</h3>
+      <p className="text-xs text-muted-foreground mb-4">Cada influenciador entra na tela inicial com a senha dele e vê apenas as vendas e comissões dele. Use o MESMO nome nas comissões das vendas.</p>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <div className="md:col-span-2">
+          <Label className="text-xs">Nome</Label>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Levi" />
+        </div>
+        <div className="md:col-span-2">
+          <Label className="text-xs">Senha de acesso</Label>
+          <Input value={pass} onChange={e => setPass(e.target.value)} placeholder="Ex: LeviPeps$" />
+        </div>
+        <div className="flex items-end">
+          <Button onClick={add} className="w-full"><Plus className="w-4 h-4 mr-1" />Criar acesso</Button>
+        </div>
+      </div>
+      <Table>
+        <TableHeader><TableRow>
+          <TableHead>Influenciador</TableHead>
+          <TableHead>Senha</TableHead>
+          <TableHead></TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {influencers.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Nenhum acesso criado.</TableCell></TableRow>}
+          {influencers.map(i => (
+            <TableRow key={i.name}>
+              <TableCell className="font-semibold">{i.name}</TableCell>
+              <TableCell className="font-mono text-xs">{i.pass}</TableCell>
+              <TableCell className="text-right"><Button size="icon" variant="ghost" onClick={() => remove(i.name)}><Trash2 className="w-4 h-4 text-destructive" /></Button></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
