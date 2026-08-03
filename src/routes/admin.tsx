@@ -931,18 +931,21 @@ export function MarcoTab({ variant = "marco" }: { variant?: PartnerVariant }) {
   };
 
   const addWithdrawal = () => {
-    if (!wProduct || wQty <= 0 || wCost < 0) return toast.error("Preencha os campos");
+    if (variant === "dereck") {
+      if (wCost <= 0) return toast.error("Informe o valor do saque");
+    } else if (!wProduct || wQty <= 0 || wCost < 0) return toast.error("Preencha os campos");
     const w: MarcoWithdrawal = {
-      id: uid(), date: wDate, product: wProduct.trim(),
-      qty: Number(wQty), unitCost: Number(wCost),
+      id: uid(), date: wDate,
+      product: variant === "dereck" ? "Saque em dinheiro" : wProduct.trim(),
+      qty: variant === "dereck" ? 1 : Number(wQty), unitCost: Number(wCost),
       note: wNote.trim() || undefined,
     };
     update(d => {
       if (variant === "marco") d.marcoWithdrawals = [...(d.marcoWithdrawals || []), w];
       else d.dereckWithdrawals = [...(d.dereckWithdrawals || []), w];
     });
-    setWQty(1); setWNote("");
-    toast.success(`Retirada registrada — descontada da comissão do ${cfg.title}`);
+    setWQty(1); setWNote(""); if (variant === "dereck") setWCost(0);
+    toast.success(variant === "dereck" ? "Saque registrado — descontado do saldo a pagar" : `Retirada registrada — descontada da comissão do ${cfg.title}`);
   };
 
   const removeWithdrawal = (id: string) => {
@@ -975,79 +978,128 @@ export function MarcoTab({ variant = "marco" }: { variant?: PartnerVariant }) {
           <div className="flex flex-wrap gap-6">
             <span>Comissão parceria (50%): <b className="text-primary">{fmtBRL(totals.myShare)}</b></span>
             {totals.loose > 0 && <span>Comissões avulsas: <b className="text-primary">+ {fmtBRL(totals.loose)}</b></span>}
-            <span>Retiradas: <b className="text-destructive">− {fmtBRL(totals.withdrawalsTotal)}</b></span>
+            <span>{variant === "dereck" ? "Saques" : "Retiradas"}: <b className="text-destructive">− {fmtBRL(totals.withdrawalsTotal)}</b></span>
             <span>Saldo líquido a pagar: <b className="gold-text">{fmtBRL(totals.partnerNet)}</b></span>
           </div>
         </div>
       )}
 
-      {/* Retiradas (descontam da comissão) */}
+      {variant === "dereck" && <DereckSaleForm />}
+
+      {/* Retiradas/Saques (descontam da comissão) */}
       <div className="glass-card rounded-xl p-6">
-        <h3 className="font-serif text-xl gold-text mb-1">Retiradas {cfg.title} (produtos p/ ele)</h3>
-        <p className="text-xs text-muted-foreground mb-4">O valor é descontado automaticamente da comissão dele. Preços padrão: Retatrutide R$ 500 · GH 200 UI R$ 1.400.</p>
+        {variant === "dereck" ? (
+          <>
+            <h3 className="font-serif text-xl gold-text mb-1">Saques Dereck (dinheiro)</h3>
+            <p className="text-xs text-muted-foreground mb-4">Saque em dinheiro da comissão. O valor é descontado automaticamente do saldo a pagar.</p>
+          </>
+        ) : (
+          <>
+            <h3 className="font-serif text-xl gold-text mb-1">Retiradas {cfg.title} (produtos p/ ele)</h3>
+            <p className="text-xs text-muted-foreground mb-4">O valor é descontado automaticamente da comissão dele. Preços padrão: Retatrutide R$ 500 · GH 200 UI R$ 1.400.</p>
+          </>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
           <div>
             <Label className="text-xs">Data</Label>
             <Input type="date" value={wDate} onChange={e => setWDate(e.target.value)} />
           </div>
-          <div className="md:col-span-2">
-            <Label className="text-xs">Produto</Label>
-            <Input list={`${variant}-catalog`} value={wProduct} onChange={e => pickProduct(e.target.value)} />
-            <datalist id={`${variant}-catalog`}>
-              {MARCO_WITHDRAWAL_CATALOG.map(c => <option key={c.product} value={c.product} />)}
-            </datalist>
-          </div>
-          <div>
-            <Label className="text-xs">Qtd</Label>
-            <NumInput min={1} value={wQty} onValue={v => setWQty(v)} />
-          </div>
-          <div>
-            <Label className="text-xs">Custo un. (R$)</Label>
-            <NumInput min={0} step="0.01" value={wCost} onValue={v => setWCost(v)} />
-          </div>
+          {variant === "dereck" ? (
+            <div className="md:col-span-2">
+              <Label className="text-xs">Valor do saque (R$)</Label>
+              <NumInput min={0} step="0.01" value={wCost} onValue={v => setWCost(v)} />
+            </div>
+          ) : (
+            <>
+              <div className="md:col-span-2">
+                <Label className="text-xs">Produto</Label>
+                <Input list={`${variant}-catalog`} value={wProduct} onChange={e => pickProduct(e.target.value)} />
+                <datalist id={`${variant}-catalog`}>
+                  {MARCO_WITHDRAWAL_CATALOG.map(c => <option key={c.product} value={c.product} />)}
+                </datalist>
+              </div>
+              <div>
+                <Label className="text-xs">Qtd</Label>
+                <NumInput min={1} value={wQty} onValue={v => setWQty(v)} />
+              </div>
+              <div>
+                <Label className="text-xs">Custo un. (R$)</Label>
+                <NumInput min={0} step="0.01" value={wCost} onValue={v => setWCost(v)} />
+              </div>
+            </>
+          )}
           <div className="flex items-end">
             <Button onClick={addWithdrawal} className="w-full"><Plus className="w-4 h-4 mr-1" />Registrar</Button>
           </div>
           <div className="md:col-span-6">
             <Label className="text-xs">Observação (opcional)</Label>
-            <Input value={wNote} onChange={e => setWNote(e.target.value)} placeholder="Ex: entregue em 12/06" />
+            <Input value={wNote} onChange={e => setWNote(e.target.value)} placeholder={variant === "dereck" ? "Ex: Pix em 03/08" : "Ex: entregue em 12/06"} />
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Produto</TableHead>
-              <TableHead>Qtd</TableHead>
-              <TableHead className="text-right">Custo un.</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead>Obs.</TableHead>
-              <TableHead></TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {withdrawals.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma retirada registrada.</TableCell></TableRow>}
-              {withdrawals.map(w => (
-                <TableRow key={w.id}>
-                  <TableCell>{format(parseDay(w.date), "dd/MM/yyyy")}</TableCell>
-                  <TableCell>{w.product}</TableCell>
-                  <TableCell>{w.qty}</TableCell>
-                  <TableCell className="text-right">{fmtBRL(w.unitCost)}</TableCell>
-                  <TableCell className="text-right text-destructive font-semibold">{fmtBRL(w.qty * w.unitCost)}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{w.note || "—"}</TableCell>
-                  <TableCell><Button size="icon" variant="ghost" onClick={() => removeWithdrawal(w.id)}><Trash2 className="w-4 h-4" /></Button></TableCell>
-                </TableRow>
-              ))}
-              {withdrawals.length > 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-right font-semibold">Total de retiradas</TableCell>
-                  <TableCell className="text-right text-destructive font-bold">{fmtBRL(totals.withdrawalsTotal)}</TableCell>
-                  <TableCell colSpan={2}></TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          {variant === "dereck" ? (
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Obs.</TableHead>
+                <TableHead></TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {withdrawals.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Nenhum saque registrado.</TableCell></TableRow>}
+                {withdrawals.map(w => (
+                  <TableRow key={w.id}>
+                    <TableCell>{format(parseDay(w.date), "dd/MM/yyyy")}</TableCell>
+                    <TableCell className="text-right text-destructive font-semibold">{fmtBRL(w.qty * w.unitCost)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{w.note || "—"}</TableCell>
+                    <TableCell><Button size="icon" variant="ghost" onClick={() => removeWithdrawal(w.id)}><Trash2 className="w-4 h-4" /></Button></TableCell>
+                  </TableRow>
+                ))}
+                {withdrawals.length > 0 && (
+                  <TableRow>
+                    <TableCell className="text-right font-semibold">Total de saques</TableCell>
+                    <TableCell className="text-right text-destructive font-bold">{fmtBRL(totals.withdrawalsTotal)}</TableCell>
+                    <TableCell colSpan={2}></TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          ) : (
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Produto</TableHead>
+                <TableHead>Qtd</TableHead>
+                <TableHead className="text-right">Custo un.</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Obs.</TableHead>
+                <TableHead></TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {withdrawals.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma retirada registrada.</TableCell></TableRow>}
+                {withdrawals.map(w => (
+                  <TableRow key={w.id}>
+                    <TableCell>{format(parseDay(w.date), "dd/MM/yyyy")}</TableCell>
+                    <TableCell>{w.product}</TableCell>
+                    <TableCell>{w.qty}</TableCell>
+                    <TableCell className="text-right">{fmtBRL(w.unitCost)}</TableCell>
+                    <TableCell className="text-right text-destructive font-semibold">{fmtBRL(w.qty * w.unitCost)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{w.note || "—"}</TableCell>
+                    <TableCell><Button size="icon" variant="ghost" onClick={() => removeWithdrawal(w.id)}><Trash2 className="w-4 h-4" /></Button></TableCell>
+                  </TableRow>
+                ))}
+                {withdrawals.length > 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-right font-semibold">Total de retiradas</TableCell>
+                    <TableCell className="text-right text-destructive font-bold">{fmtBRL(totals.withdrawalsTotal)}</TableCell>
+                    <TableCell colSpan={2}></TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
 
@@ -1162,6 +1214,99 @@ export function MarcoTab({ variant = "marco" }: { variant?: PartnerVariant }) {
           </TableBody>
         </Table>
       </div>
+    </div>
+  );
+}
+
+/* Registrar venda da parceria Dereck (visão da parceria: custo fixo R$500/un) */
+function DereckSaleForm() {
+  const { db, update } = useDB();
+  const inventoryKeys = useMemo(
+    () => Object.keys(db.inventory).filter(k => db.inventory[k].vials > 0),
+    [db.inventory]
+  );
+  const [form, setForm] = useState({
+    date: new Date().toISOString().slice(0, 10),
+    client: "", phone: "", productKey: "",
+    qty: 1, salePrice: 0, discount: 0, operationalCost: 0,
+    affName: "", affMode: "BRL" as "BRL" | "PCT", affInput: 0,
+  });
+
+  const calc = useMemo(() => {
+    const gross = form.qty * form.salePrice;
+    const affAmount = form.affMode === "PCT" ? gross * (form.affInput || 0) / 100 : (form.affInput || 0);
+    const net = gross - form.discount - affAmount;
+    const partnerCost = MARCO_UNIT_COST_BRL * form.qty;
+    const partnerProfit = net - partnerCost - (form.operationalCost || 0);
+    const share = Math.max(0, partnerProfit / 2);
+    return { gross, affAmount, net, partnerCost, partnerProfit, share };
+  }, [form]);
+
+  const submit = () => {
+    if (!form.client) return toast.error("Cliente é obrigatório");
+    if (!form.productKey) return toast.error("Selecione o produto");
+    const item = db.inventory[form.productKey];
+    if (!item || item.vials < form.qty) return toast.error("Estoque insuficiente");
+    if (form.qty <= 0 || form.salePrice <= 0) return toast.error("Informe quantidade e preço");
+    update(d => {
+      d.sales.push({
+        id: uid(), date: form.date, client: form.client, phone: form.phone,
+        productKey: form.productKey, productName: item.name, qty: form.qty,
+        salePrice: form.salePrice, discount: form.discount, type: "dereck",
+        operationalCost: form.operationalCost || undefined,
+        commission1: form.affName.trim() ? { name: form.affName.trim(), amount: calc.affAmount } : undefined,
+        grossRevenue: calc.gross, netRevenue: calc.net, productCost: 0, profit: 0,
+      });
+      recomputeInventories(d);
+    });
+    setForm({ ...form, client: "", phone: "", qty: 1, salePrice: 0, discount: 0, operationalCost: 0, affName: "", affInput: 0 });
+    toast.success("Venda da parceria registrada");
+  };
+
+  return (
+    <div className="glass-card rounded-xl p-6 space-y-4">
+      <h3 className="font-serif text-xl gold-text">Registrar Venda da Parceria</h3>
+      <div className="grid md:grid-cols-3 gap-4">
+        <Field label="Data *"><Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></Field>
+        <Field label="Cliente *"><Input value={form.client} onChange={e => setForm({ ...form, client: e.target.value })} /></Field>
+        <Field label="Telefone"><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="(11) 98765-4321" /></Field>
+        <Field label="Produto *">
+          <Select value={form.productKey} onValueChange={v => setForm({ ...form, productKey: v })}>
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>{inventoryKeys.map(k => <SelectItem key={k} value={k}>{k} ({db.inventory[k].vials} fr.)</SelectItem>)}</SelectContent>
+          </Select>
+        </Field>
+        <Field label="Qtd Frascos *"><NumInput value={form.qty} onValue={v => setForm({ ...form, qty: v })} /></Field>
+        <Field label="Preço Unit. (R$) *"><NumInput step="0.01" value={form.salePrice} onValue={v => setForm({ ...form, salePrice: v })} /></Field>
+        <Field label="Desconto (R$)"><NumInput step="0.01" value={form.discount} onValue={v => setForm({ ...form, discount: v })} /></Field>
+        <Field label="Custo Operacional (R$)"><NumInput step="0.01" value={form.operationalCost} onValue={v => setForm({ ...form, operationalCost: v })} placeholder="Frete, taxas, etc." /></Field>
+      </div>
+      <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-end md:max-w-xl">
+        <Field label="Afiliado/Influenciador">
+          <Input list="dereck-affiliates" value={form.affName} onChange={e => setForm({ ...form, affName: e.target.value })} placeholder="Ex: Levi" />
+          <datalist id="dereck-affiliates">
+            {(db.influencers || []).map(i => <option key={i.name} value={i.name} />)}
+          </datalist>
+        </Field>
+        <Field label="Tipo">
+          <Select value={form.affMode} onValueChange={v => setForm({ ...form, affMode: v as "BRL" | "PCT" })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="BRL">R$</SelectItem><SelectItem value="PCT">%</SelectItem></SelectContent>
+          </Select>
+        </Field>
+        <Field label={form.affMode === "PCT" ? `% da venda (= ${fmtBRL(calc.affAmount)})` : "Comissão (R$)"}>
+          <NumInput step="0.01" value={form.affInput} onValue={v => setForm({ ...form, affInput: v })} />
+        </Field>
+      </div>
+      <div className="rounded-lg gold-border p-4 grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
+        <Calc label="Receita Bruta" v={fmtBRL(calc.gross)} />
+        <Calc label="Comissão Afiliado" v={fmtBRL(calc.affAmount)} />
+        <Calc label="Receita Líquida" v={fmtBRL(calc.net)} />
+        <Calc label={`Custo (${form.qty} × R$ ${MARCO_UNIT_COST_BRL})`} v={fmtBRL(calc.partnerCost)} />
+        <Calc label="Lucro da Parceria" v={fmtBRL(calc.partnerProfit)} />
+        <Calc label="Sócio Dereck (50%)" v={fmtBRL(calc.share)} highlight />
+      </div>
+      <Button onClick={submit} className="gold-gradient"><Plus className="w-4 h-4 mr-1" /> Registrar Venda</Button>
     </div>
   );
 }

@@ -137,6 +137,7 @@ export type DB = {
   marcoWithdrawals?: MarcoWithdrawal[]; // retiradas do Marco (descontam comissão)
   dereckWithdrawals?: MarcoWithdrawal[]; // retiradas do Dereck (descontam comissão)
   influencers?: Influencer[]; // afiliados geridos pelo Dereck (nome + senha de acesso)
+  seedApplied?: string[]; // ids do seed já aplicados neste aparelho (evita re-adicionar apagados)
 };
 
 export const EMPTY_DB: DB = {
@@ -211,6 +212,60 @@ function normalizeDB(parsed: Partial<DB>): DB {
   return db;
 }
 
+/**
+ * Aplica ao banco local os registros do seed que ainda não passaram por este
+ * aparelho (por id). Assim, dados novos publicados no seed chegam a aparelhos
+ * que já têm histórico próprio, sem apagar nada e sem ressuscitar registros
+ * que o usuário apagou (ids já aplicados ficam em seedApplied).
+ */
+function mergeSeedInto(db: DB): DB {
+  const seed = SEED_DB as Partial<DB>;
+  const applied = new Set(db.seedApplied || []);
+  let added = false;
+
+  const mergeById = <T extends { id: string }>(target: T[], source: T[] | undefined) => {
+    for (const item of source || []) {
+      if (!applied.has(item.id)) {
+        if (!target.some(x => x.id === item.id)) {
+          target.push(JSON.parse(JSON.stringify(item)) as T);
+          added = true;
+        }
+        applied.add(item.id);
+      }
+    }
+  };
+
+  mergeById(db.orders, seed.orders);
+  mergeById(db.sales, seed.sales);
+  mergeById(db.expenses, seed.expenses);
+  db.marcoWithdrawals = db.marcoWithdrawals || [];
+  db.dereckWithdrawals = db.dereckWithdrawals || [];
+  mergeById(db.marcoWithdrawals, seed.marcoWithdrawals);
+  mergeById(db.dereckWithdrawals, seed.dereckWithdrawals);
+
+  db.influencers = db.influencers || [];
+  for (const inf of seed.influencers || []) {
+    const key = `influencer:${inf.name.trim().toLowerCase()}`;
+    if (!applied.has(key)) {
+      if (!db.influencers.some(i => i.name.trim().toLowerCase() === inf.name.trim().toLowerCase())) {
+        db.influencers.push({ ...inf });
+        added = true;
+      }
+      applied.add(key);
+    }
+  }
+
+  db.seedApplied = [...applied];
+  if (added) {
+    db.orders = db.orders.map(o => ({
+      ...o,
+      products: Array.isArray(o.products) ? o.products.map(normalizeOrderProduct) : [],
+    }));
+    recomputeInventories(db);
+  }
+  return db;
+}
+
 export function loadDB(): DB {
   if (typeof window === "undefined") return EMPTY_DB;
   try {
@@ -224,9 +279,9 @@ export function loadDB(): DB {
       const oldHasHistory = Boolean(old?.orders?.length || old?.sales?.length || old?.applications?.length);
       if (!currentHasHistory && oldHasHistory) raw = rawOld;
     }
-    if (!raw) return normalizeDB(structuredClone(SEED_DB) as Partial<DB>);
+    if (!raw) return mergeSeedInto(normalizeDB(structuredClone(SEED_DB) as Partial<DB>));
     const parsed = JSON.parse(raw);
-    return normalizeDB(parsed);
+    return mergeSeedInto(normalizeDB(parsed));
   } catch {
     return EMPTY_DB;
   }
