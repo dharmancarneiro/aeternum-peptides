@@ -40,6 +40,7 @@ export type Order = {
   freightChina: number; // USD
   freightUSA: number; // USD
   freightBR: number; // BRL
+  directBR?: boolean;   // frete direto ao Brasil: não passa pelo Paraguai (sem propina)
   totalCost: number; // BRL
 };
 
@@ -294,7 +295,7 @@ export function ensureCloudSync(): Promise<boolean> {
  */
 export function applyOrderToInventory(d: DB, order: Order) {
   const totalOrderVials = order.products.reduce((s, p) => s + vialsOf(p), 0);
-  const propinaUSD = totalOrderVials * PROPINA_PY_USD;
+  const propinaUSD = order.directBR ? 0 : totalOrderVials * PROPINA_PY_USD;
   const freightBRLTotal = (order.freightChina + order.freightUSA + propinaUSD) * USD_BRL + order.freightBR;
   const arrivedVials = order.products
     .filter(p => p.status === "arrived")
@@ -451,12 +452,12 @@ export function recomputeInventories(d: DB) {
   }
 }
 
-export function computeOrderCost(products: OrderProduct[], fChina: number, fUSA: number, fBR: number) {
+export function computeOrderCost(products: OrderProduct[], fChina: number, fUSA: number, fBR: number, directBR = false) {
   // valor de produtos = soma( boxes * preço_por_box ), respeitando a moeda de cada produto
   const productsUSD = products.reduce((s, p) => s + productCostUSD(p), 0);
   const productsBRL = products.reduce((s, p) => s + productCostBRL(p), 0);
   const totalOrderVials = products.reduce((s, p) => s + vialsOf(p), 0);
-  const propinaUSD = totalOrderVials * PROPINA_PY_USD;
+  const propinaUSD = directBR ? 0 : totalOrderVials * PROPINA_PY_USD;
   const propinaBRL = propinaUSD * USD_BRL;
   const freightBRLTotal = (fChina + fUSA + propinaUSD) * USD_BRL + fBR;
   const arrivedVials = products.filter(p => p.status === "arrived").reduce((s, p) => s + vialsOf(p), 0);

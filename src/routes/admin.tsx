@@ -176,6 +176,9 @@ function NumInput({ value, onValue, ...props }: { value: number; onValue: (v: nu
   );
 }
 
+/** Datas YYYY-MM-DD sao interpretadas como dia LOCAL (evita cair um dia por fuso) */
+const parseDay = (d: string) => new Date(d.length <= 10 ? `${d}T00:00:00` : d);
+
 /* ---------------- ORDERS ---------------- */
 const emptyProduct = (): OrderProduct => ({
   name: "", boxQty: 0, frascosPerBox: 0, mgPerVial: 0, priceUSD: 0, priceCurrency: "USD",
@@ -195,10 +198,11 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
   const [freightChina, setFreightChina] = useState(initial?.freightChina || 0);
   const [freightUSA, setFreightUSA] = useState(initial?.freightUSA || 0);
   const [freightBR, setFreightBR] = useState(initial?.freightBR || 0);
+  const [directBR, setDirectBR] = useState(initial?.directBR || false);
 
   const calc = useMemo(
-    () => computeOrderCost(products, freightChina, freightUSA, freightBR),
-    [products, freightChina, freightUSA, freightBR]
+    () => computeOrderCost(products, freightChina, freightUSA, freightBR, directBR),
+    [products, freightChina, freightUSA, freightBR, directBR]
   );
 
   const setProd = (i: number, patch: Partial<OrderProduct>) => {
@@ -207,7 +211,7 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
 
   const submit = () => {
     if (!supplier || products.some(p => !p.name)) return toast.error("Preencha fornecedor e nomes dos produtos");
-    onSave({ date, supplier, products, freightChina, freightUSA, freightBR });
+    onSave({ date, supplier, products, freightChina, freightUSA, freightBR, directBR });
   };
 
   return (
@@ -324,16 +328,30 @@ function OrderForm({ initial, onSave, onCancel, submitLabel }: {
         </div>
       </div>
 
+      <label className="flex items-center gap-2 cursor-pointer text-sm">
+        <input
+          type="checkbox"
+          checked={directBR}
+          onChange={e => { setDirectBR(e.target.checked); if (e.target.checked) { setFreightUSA(0); setFreightBR(0); } }}
+          className="w-4 h-4 accent-[oklch(0.78_0.13_70)]"
+        />
+        <span className="text-muted-foreground">Frete direto para o Brasil (não passa pelo Paraguai · sem propina)</span>
+      </label>
+
       <div className="grid md:grid-cols-3 gap-4">
-        <Field label="Frete China → USA (USD)"><NumInput step="0.01" value={freightChina} onValue={v => setFreightChina(v)} /></Field>
-        <Field label="Frete USA → Paraguai (USD)"><NumInput step="0.01" value={freightUSA} onValue={v => setFreightUSA(v)} /></Field>
-        <Field label="Frete Paraguai → Brasil (R$)"><NumInput step="0.01" value={freightBR} onValue={v => setFreightBR(v)} /></Field>
+        {directBR ? (
+          <Field label="Frete China → Brasil (USD)"><NumInput step="0.01" value={freightChina} onValue={v => setFreightChina(v)} /></Field>
+        ) : (
+          <Field label="Frete China → USA (USD)"><NumInput step="0.01" value={freightChina} onValue={v => setFreightChina(v)} /></Field>
+        )}
+        {!directBR && <Field label="Frete USA → Paraguai (USD)"><NumInput step="0.01" value={freightUSA} onValue={v => setFreightUSA(v)} /></Field>}
+        {!directBR && <Field label="Frete Paraguai → Brasil (R$)"><NumInput step="0.01" value={freightBR} onValue={v => setFreightBR(v)} /></Field>}
       </div>
 
       <div className="rounded-lg gold-border p-4 grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
         <Calc label="Produtos (USD)" v={`US$ ${calc.productsUSD.toFixed(2)}`} />
         <Calc label="Produtos (R$)" v={fmtBRL(calc.productsBRL)} />
-        <Calc label="Propina PY (US$4/vial)" v={fmtBRL(calc.propinaBRL)} />
+        <Calc label={directBR ? "Propina PY (isento)" : "Propina PY (US$4/vial)"} v={fmtBRL(calc.propinaBRL)} />
         <Calc label="Frete Total (R$)" v={fmtBRL(calc.freightBRLTotal)} />
         <Calc label="Frete / Frasco" v={fmtBRL(calc.freightPerVial)} />
         <Calc label="Custo Total" v={fmtBRL(calc.totalBRL)} highlight />
@@ -403,7 +421,7 @@ export function OrdersTab() {
               const rebuy = o.products.filter(p => p.status === "rebuy").length;
               return (
                 <TableRow key={o.id}>
-                  <TableCell>{format(new Date(o.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell>{format(parseDay(o.date), "dd/MM/yyyy")}</TableCell>
                   <TableCell>{o.supplier}</TableCell>
                   <TableCell className="text-xs">
                     {o.products.map((p, i) => (
@@ -603,7 +621,7 @@ export function SalesTab() {
             {db.sales.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sem vendas</TableCell></TableRow>}
             {[...db.sales].sort((a,b) => b.date.localeCompare(a.date)).map(s => (
               <TableRow key={s.id}>
-                <TableCell>{format(new Date(s.date), "dd/MM/yyyy")}</TableCell>
+                <TableCell>{format(parseDay(s.date), "dd/MM/yyyy")}</TableCell>
                 <TableCell>{s.client}</TableCell>
                 <TableCell>
                   <button onClick={() => setEditingSale(s)} className="text-primary hover:underline text-left">
@@ -938,7 +956,7 @@ export function MarcoTab() {
               {withdrawals.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma retirada registrada.</TableCell></TableRow>}
               {withdrawals.map(w => (
                 <TableRow key={w.id}>
-                  <TableCell>{format(new Date(w.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell>{format(parseDay(w.date), "dd/MM/yyyy")}</TableCell>
                   <TableCell>{w.product}</TableCell>
                   <TableCell>{w.qty}</TableCell>
                   <TableCell className="text-right">{fmtBRL(w.unitCost)}</TableCell>
@@ -986,7 +1004,7 @@ export function MarcoTab() {
               const share = tp / 2;
               return (
                 <TableRow key={s.id}>
-                  <TableCell>{format(new Date(s.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell>{format(parseDay(s.date), "dd/MM/yyyy")}</TableCell>
                   <TableCell>{s.client || "—"}</TableCell>
                   <TableCell>{s.productName}</TableCell>
                   <TableCell>{s.qty}</TableCell>
@@ -1059,7 +1077,7 @@ function ExpensesPanel() {
             {expenses.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Sem despesas</TableCell></TableRow>}
             {expenses.map((e: Expense) => (
               <TableRow key={e.id}>
-                <TableCell>{format(new Date(e.date), "dd/MM/yyyy")}</TableCell>
+                <TableCell>{format(parseDay(e.date), "dd/MM/yyyy")}</TableCell>
                 <TableCell>{e.description}</TableCell>
                 <TableCell className="text-muted-foreground">{e.category || "—"}</TableCell>
                 <TableCell className="text-right text-primary">{fmtBRL(e.amount)}</TableCell>
@@ -1088,7 +1106,7 @@ export function ReportsTab() {
     let cInv = 0, cRev = 0, cProf = 0;
     for (const e of all) {
       cInv += e.inv || 0; cRev += e.rev || 0; cProf += e.profit || 0;
-      events.push({ date: format(new Date(e.date), "dd/MM"), inv: cInv, rev: cRev, profit: cProf });
+      events.push({ date: format(parseDay(e.date), "dd/MM"), inv: cInv, rev: cRev, profit: cProf });
     }
     return events;
   }, [db]);
@@ -1513,7 +1531,7 @@ function PartnersTab() {
             {filtered.map((r, i) => (
               <TableRow key={r.saleId + r.partner + i}>
                 <TableCell className="font-medium text-primary">{r.partner}</TableCell>
-                <TableCell>{format(new Date(r.date), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
+                <TableCell>{format(parseDay(r.date), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
                 <TableCell>{r.client}</TableCell>
                 <TableCell className="text-right">{fmtPct(r.pct)}</TableCell>
                 <TableCell className="text-right">{fmtBRL(r.saleValue)}</TableCell>

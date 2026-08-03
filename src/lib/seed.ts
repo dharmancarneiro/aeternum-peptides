@@ -1,4 +1,5 @@
 // Seed real exportado do sistema em 2026-07-02 (AETERNUM-DADOS-COMPLETOS.md)
+// + pedidos LYU 2026-07-27 e VIVA 2026-07-30 adicionados em 2026-08-03 a pedido do Dharman.
 // Usado como estado inicial quando o localStorage esta vazio.
 import type { DB } from "./storage";
 
@@ -477,6 +478,179 @@ export const SEED_DB = {
           "priceUSD": 220,
           "mgPerVial": 1,
           "frascosPerBox": 1
+        }
+      ]
+    },
+    {
+      "id": "lyu4-2026-07-27a",
+      "date": "2026-07-27",
+      "supplier": "LYU",
+      "freightChina": 70,
+      "freightUSA": 50,
+      "freightBR": 2100,
+      "totalCost": 0,
+      "products": [
+        {
+          "name": "IGF1 - LR3",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 0.1,
+          "priceUSD": 50,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "GHK-CU 100MG",
+          "boxQty": 2,
+          "frascosPerBox": 10,
+          "mgPerVial": 100,
+          "priceUSD": 100,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "GHK-CU 50MG",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 50,
+          "priceUSD": 30,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "AHK-CU 100MG",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 100,
+          "priceUSD": 75,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "LEMON BOTTLE",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 10,
+          "priceUSD": 55,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "SNAP-8",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 10,
+          "priceUSD": 40,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "CEREBROLYSIN",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 60,
+          "priceUSD": 30,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "PINEALON",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 10,
+          "priceUSD": 65,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "EPITHALON",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 10,
+          "priceUSD": 60,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "DIHEXA",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 10,
+          "priceUSD": 65,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "OXITOCINA",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 5,
+          "priceUSD": 50,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "RETRATUTIDE",
+          "boxQty": 2,
+          "frascosPerBox": 10,
+          "mgPerVial": 20,
+          "priceUSD": 80,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        }
+      ]
+    },
+    {
+      "id": "viva-2026-07-30a",
+      "date": "2026-07-30",
+      "supplier": "VIVA",
+      "freightChina": 50,
+      "freightUSA": 0,
+      "freightBR": 0,
+      "directBR": true,
+      "totalCost": 0,
+      "products": [
+        {
+          "name": "HGH FRAGMENT 176-191",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 5,
+          "priceUSD": 120,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "SLU-PP-332",
+          "boxQty": 1,
+          "frascosPerBox": 10,
+          "mgPerVial": 10,
+          "priceUSD": 150,
+          "status": "arrived",
+          "usage": "revenda",
+          "consumed": 0
+        },
+        {
+          "name": "SLU-PP-332 CAPSULAS",
+          "boxQty": 1,
+          "frascosPerBox": 1,
+          "mgPerVial": 60,
+          "priceUSD": 50,
+          "status": "arrived",
+          "usage": "consumo",
+          "consumed": 0
         }
       ]
     }
