@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.output
+.nitro
+.tanstack
+.vercel
+routeTree.gen.ts
+nohup.out
